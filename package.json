@@ -1,0 +1,36 @@
+{
+  "name": "the-internet-playwright",
+  "version": "1.0.0",
+  "description": "the-internet website testing with Playwright",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:ui": "npx playwright test --ui",
+    "typecheck": "tsc",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/b1zz1/the-internet-playwright.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/b1zz1/the-internet-playwright/issues"
+  },
+  "homepage": "https://github.com/b1zz1/the-internet-playwright#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.72.1"
+  }
+}
