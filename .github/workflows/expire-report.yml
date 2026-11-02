@@ -1,0 +1,88 @@
+name: Expire Playwright Report
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+# Shared with playwright.yml so a deploy and a cleanup never overlap.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      expired: ${{ steps.check.outputs.expired }}
+    steps:
+      - name: Check whether the published report has expired
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          site="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}"
+          if ! meta=$(curl -fsS "$site/report-meta.json?t=$(date +%s)"); then
+            echo "No report metadata found at $site, nothing to expire."
+            exit 0
+          fi
+          if [ "$(jq -r '.status' <<< "$meta")" != "active" ]; then
+            echo "Report already expired."
+            exit 0
+          fi
+          expires_at=$(jq -r '.expires_at' <<< "$meta")
+          if [ "$(date -u +%s)" -lt "$(date -u -d "$expires_at" +%s)" ]; then
+            echo "Report is still valid until $expires_at."
+            exit 0
+          fi
+          # Don't overwrite a report that a running test workflow is about to publish.
+          runs="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/playwright.yml/runs"
+          for status in in_progress queued; do
+            count=$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" "$runs?status=$status" | jq '.total_count')
+            if [ "$count" -gt 0 ]; then
+              echo "A Playwright run is $status, retrying on the next schedule."
+              exit 0
+            fi
+          done
+          echo "Report expired at $expires_at, replacing it with a placeholder."
+          echo "expired=true" >> "$GITHUB_OUTPUT"
+
+  expire:
+    needs: check
+    if: needs.check.outputs.expired == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Build placeholder page
+        run: |
+          mkdir placeholder
+          echo '{ "status": "expired" }' > placeholder/report-meta.json
+          cat > placeholder/index.html <<EOF
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <title>No Playwright report available</title>
+            </head>
+            <body style="font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; padding: 0 1rem">
+              <h1>No report available</h1>
+              <p>The last Playwright report expired after 24 hours.</p>
+              <p>
+                <a href="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/playwright.yml">Run the Playwright Tests workflow</a>
+                to publish a new one.
+              </p>
+            </body>
+          </html>
+          EOF
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: placeholder/
+          retention-days: 1
+      - name: Deploy placeholder to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
