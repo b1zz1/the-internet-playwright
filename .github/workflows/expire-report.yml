@@ -35,9 +35,11 @@ jobs:
             exit 0
           fi
           # Don't overwrite a report that a running test workflow is about to publish.
+          # PR runs never publish, so they don't block expiry.
           runs="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/playwright.yml/runs"
           for status in in_progress queued; do
-            count=$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" "$runs?status=$status" | jq '.total_count')
+            count=$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" "$runs?status=$status&per_page=100" \
+              | jq '[.workflow_runs[] | select(.event != "pull_request")] | length')
             if [ "$count" -gt 0 ]; then
               echo "A Playwright run is $status, retrying on the next schedule."
               exit 0
