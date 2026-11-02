@@ -60,11 +60,11 @@ npx playwright show-report       # open the last HTML report
 
 ## Reports and traces
 
-Results are written to `playwright-report/` as an HTML report. Traces are recorded on the first retry of a failing test (`trace: "on-first-retry"`), so they're only captured when retries are enabled, i.e. with `CI` set. Open a trace from the report or with `npx playwright show-trace <path-to-trace.zip>`.
+Results are written to `playwright-report/` as an HTML report and to `results/report.json` as a JSON report. Traces are recorded on the first retry of a failing test (`trace: "on-first-retry"`), so they're only captured when retries are enabled, i.e. with `CI` set. Open a trace from the report or with `npx playwright show-trace <path-to-trace.zip>`.
 
 ## Continuous integration
 
-[`.github/workflows/playwright.yml`](.github/workflows/playwright.yml) runs the suite on every push and pull request to `main`/`master` using the latest Node LTS. The HTML report is uploaded as a `playwright-report` artifact and kept for 30 days.
+[`.github/workflows/playwright.yml`](.github/workflows/playwright.yml) runs the suite on every push and pull request to `main`/`master` and daily at 05:30 UTC, using the latest Node LTS. The HTML and JSON reports are uploaded together as a `playwright-report` artifact and kept for 30 days.
 
 You can also run it on demand from **Actions → Playwright Tests → Run workflow**. The `publish_report` checkbox (ticked by default) controls whether that run publishes its report to GitHub Pages.
 
@@ -72,10 +72,12 @@ You can also run it on demand from **Actions → Playwright Tests → Run workfl
 
 The latest HTML report is published to <https://b1zz1.github.io/the-internet-playwright/>:
 
-- pushes to `main`/`master` always publish, manual runs publish only when `publish_report` is ticked, and pull requests never publish
+- pushes to `main`/`master` and the daily scheduled run always publish, manual runs publish only when `publish_report` is ticked, and pull requests never publish
 - each publish overwrites the previous report, including re-runs
 - the report is published even when tests fail
 - [`.github/workflows/expire-report.yml`](.github/workflows/expire-report.yml) runs hourly and replaces a report older than 24 hours with a "No report available" page (it can also be run manually)
+
+Because the scheduled run publishes every day, a fresh report normally replaces the old one around the time it expires. The "No report available" page only appears when a day's run doesn't publish. GitHub disables scheduled workflows in public repositories after 60 days without activity; re-enable them from the Actions tab if that happens.
 
 One-time setup: in the repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions**. By default, the `github-pages` environment only accepts deployments from the default branch, so manual runs on other branches will run the tests but fail to deploy.
 
@@ -83,7 +85,7 @@ One-time setup: in the repository settings, set **Pages → Build and deployment
 
 ```text
 .
-├── .github/workflows/playwright.yml   # CI pipeline
+├── .github/workflows/playwright.yml   # CI pipeline (push, PR, daily, manual)
 ├── .github/workflows/expire-report.yml # Takes the hosted report down after 24h
 ├── tests/                             # Playwright specs
 ├── playwright.config.ts               # Test runner configuration
