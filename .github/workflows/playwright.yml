@@ -4,10 +4,18 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      publish_report:
+        description: Publish the HTML report to GitHub Pages (for the next 24 hours)
+        type: boolean
+        default: true
 jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    outputs:
+      pages_artifact: ${{ steps.pages-artifact.outcome == 'success' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,3 +33,44 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+      # Pushes always publish, manual runs only when publish_report is ticked, PRs never.
+      - name: Write report expiry metadata
+        if: ${{ !cancelled() && (github.event_name == 'push' || inputs.publish_report) && hashFiles('playwright-report/index.html') != '' }}
+        run: |
+          cat > playwright-report/report-meta.json <<EOF
+          {
+            "status": "active",
+            "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "expires_at": "$(date -u -d '+24 hours' +%Y-%m-%dT%H:%M:%SZ)",
+            "run_url": "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          }
+          EOF
+      - name: Upload Pages artifact
+        id: pages-artifact
+        if: ${{ !cancelled() && hashFiles('playwright-report/report-meta.json') != '' }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report/
+          retention-days: 1
+
+  deploy-report:
+    needs: test
+    if: ${{ !cancelled() && needs.test.outputs.pages_artifact == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Shared with expire-report.yml so a deploy and a cleanup never overlap.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Link report in job summary
+        run: |
+          echo "HTML report (available for 24 hours): ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
