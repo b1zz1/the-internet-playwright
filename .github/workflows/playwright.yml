@@ -9,6 +9,10 @@ on:
     branches: [main, master]
   workflow_dispatch:
     inputs:
+      store_report:
+        description: Store JSON report to registered database
+        type: boolean
+        default: true
       publish_report:
         description: Publish HTML report to GitHub Pages
         type: boolean
