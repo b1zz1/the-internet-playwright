@@ -39,6 +39,11 @@ jobs:
             results/report.json
           retention-days: 30
           overwrite: true
+      - name: Upload report to MongoDB
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && hashFiles('results/report.json') != '' }}
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: node scripts/upload-report.mjs
       # Pushes and scheduled runs always publish, manual runs only when publish_report is ticked, PRs never.
       - name: Write report expiry metadata
         if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'schedule' || inputs.publish_report) && hashFiles('playwright-report/index.html') != '' }}
