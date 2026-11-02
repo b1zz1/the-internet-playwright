@@ -21,13 +21,13 @@ const doc = {
     runAttempt: env.GITHUB_RUN_ATTEMPT,
     runUrl: `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`,
   },
-  report, // untouched Playwright JSON
+  report,
 }
 
 const client = new MongoClient(uri)
 try {
   await client.connect()
-  await client.db("pinwheel").collection("raw_reports").insertOne(doc)
+  await client.db("the-internet").collection("test-reports").insertOne(doc)
 } finally {
   await client.close()
 }
