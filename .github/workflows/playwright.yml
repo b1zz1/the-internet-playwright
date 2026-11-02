@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       store_report:
-        description: Store JSON report to registered database
+        description: Store JSON report to database
         type: boolean
         default: true
       publish_report:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       pages_artifact: ${{ steps.pages-artifact.outcome == 'success' }}
-      has_json_report: ${{ steps.json-report.ouitputs.eists }}
+      has_json_report: ${{ steps.json-report.outputs.exists }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
       - name: Run Playwright tests
         run: npx playwright test
       - name: Check JSON report
