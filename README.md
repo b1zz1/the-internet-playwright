@@ -66,7 +66,20 @@ Results are written to `playwright-report/` as an HTML report and to `results/re
 
 [`.github/workflows/playwright.yml`](.github/workflows/playwright.yml) runs the suite on every push and pull request to `main`/`master` and daily at 05:30 UTC, using the latest Node LTS. The HTML and JSON reports are uploaded together as a `playwright-report` artifact and kept for 30 days.
 
-You can also run it on demand from **Actions → Playwright Tests → Run workflow**. The `publish_report` checkbox (ticked by default) controls whether that run publishes its report to GitHub Pages.
+You can also run it on demand from **Actions → Playwright Tests → Run workflow**. Two checkboxes (both ticked by default) control what that run does with its report:
+
+- `store_report` stores the JSON report in MongoDB
+- `publish_report` publishes the HTML report to GitHub Pages
+
+### Stored reports
+
+Each JSON report is inserted into the `test-reports` collection of the `the-internet` MongoDB database by [`scripts/upload-report.mjs`](scripts/upload-report.mjs), along with run metadata (commit, branch, event, run URL):
+
+- pushes to `main`/`master` and the daily scheduled run always store, manual runs store only when `store_report` is ticked, and pull requests never store
+- the report is stored even when tests fail
+- every run adds a new document, so re-runs are stored again
+
+One-time setup: add a `MONGODB_URI` repository secret (**Settings → Secrets and variables → Actions**). Without it the upload step is skipped with a warning.
 
 ### Hosted report
 
@@ -87,6 +100,7 @@ One-time setup: in the repository settings, set **Pages → Build and deployment
 .
 ├── .github/workflows/playwright.yml   # CI pipeline (push, PR, daily, manual)
 ├── .github/workflows/expire-report.yml # Takes the hosted report down after 24h
+├── scripts/upload-report.mjs          # Stores the JSON report in MongoDB
 ├── tests/                             # Playwright specs
 ├── playwright.config.ts               # Test runner configuration
 ├── eslint.config.mjs                  # ESLint (flat config) + Prettier compat

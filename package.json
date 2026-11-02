@@ -30,6 +30,8 @@
     "@types/node": "^26.6.6",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "mongodb": "^7.8.0",
     "prettier": "^3.9.10",
     "typescript-eslint": "^8.72.1"
   }

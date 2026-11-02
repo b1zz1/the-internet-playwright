@@ -9,6 +9,10 @@ on:
     branches: [main, master]
   workflow_dispatch:
     inputs:
+      store_report:
+        description: Store JSON report to database
+        type: boolean
+        default: true
       publish_report:
         description: Publish HTML report to GitHub Pages
         type: boolean
@@ -19,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       pages_artifact: ${{ steps.pages-artifact.outcome == 'success' }}
+      has_json_report: ${{ steps.json-report.outputs.exists }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,9 +32,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
       - name: Run Playwright tests
         run: npx playwright test
+      - name: Check JSON report
+        id: json-report
+        if: ${{ !cancelled() }}
+        run: echo "exists=$([ -f results/report.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
@@ -58,6 +67,27 @@ jobs:
         with:
           path: playwright-report/
           retention-days: 1
+
+  # Pushes and scheduled runs always store, manual runs only when store_report is ticked, PRs never.
+  store-report:
+    needs: test
+    if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'schedule' || inputs.store_report) && needs.test.outputs.has_json_report == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Install dependencies
+        run: npm ci
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report
+      - name: Upload report to MongoDB
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: node scripts/upload-report.mjs
 
   deploy-report:
     needs: test
