@@ -68,9 +68,10 @@ jobs:
           path: playwright-report/
           retention-days: 1
 
+  # Pushes and scheduled runs always store, manual runs only when store_report is ticked, PRs never.
   store-report:
     needs: test
-    if: ${{ !cancelled() && github.event_name != 'pull_request' && needs.test.outputs.has_json_report == 'true' }}
+    if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'schedule' || inputs.store_report) && needs.test.outputs.has_json_report == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
